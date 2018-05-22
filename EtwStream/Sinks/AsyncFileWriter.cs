@@ -1,82 +1,94 @@
-﻿using System;
+﻿#region Using Statements
+
+using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics.Tracing;
 using System.IO;
-using System.Linq;
-using System.Reactive.Linq;
-using System.Reactive.Threading.Tasks;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+#endregion
+
+// ReSharper disable UnusedMember.Global
+// ReSharper disable once CheckNamespace
 namespace EtwStream
 {
     internal class AsyncFileWriter
     {
-        readonly BlockingCollection<string> q = new BlockingCollection<string>();
-        readonly object gate = new object();
-        readonly string sinkName;
-        readonly FileStream fileStream;
+        private readonly bool autoFlush;
 
-        readonly Encoding encoding;
-        readonly bool autoFlush;
-        readonly byte[] newLine;
+        private readonly CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 
-        readonly Task processingTask;
-        int isDisposed = 0;
-        readonly CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+        private readonly Encoding encoding;
 
-        public string FileName { get; private set; }
-        public long CurrentStreamLength { get; private set; }
+        private readonly FileStream fileStream;
+
+        private readonly object gate = new object();
+
+        private readonly byte[] newLine;
+
+        private readonly Task processingTask;
+
+        private readonly BlockingCollection<string> q = new BlockingCollection<string>();
+
+        private readonly string sinkName;
+
+        private int isDisposed;
 
         public AsyncFileWriter(string sinkName, string fileName, Encoding encoding, bool autoFlush)
         {
             {
                 var fi = new FileInfo(fileName);
-                if (!fi.Directory.Exists) fi.Directory.Create();
+
+                if (fi.Directory != null && !fi.Directory.Exists)
+                {
+                    fi.Directory.Create();
+                }
             }
 
-            this.FileName = fileName;
+            FileName = fileName;
             this.sinkName = sinkName;
-            this.fileStream = new FileStream(fileName, FileMode.Append, FileAccess.Write, FileShare.ReadWrite, 4096, useAsync: false); // useAsync:false, use dedicated processor
+            this.fileStream = new FileStream(fileName, FileMode.Append, FileAccess.Write, FileShare.ReadWrite, 4096, useAsync: false);
             this.encoding = encoding;
             this.autoFlush = autoFlush;
-
             this.newLine = encoding.GetBytes(Environment.NewLine);
-            this.CurrentStreamLength = fileStream.Length;
-
+            CurrentStreamLength = this.fileStream.Length;
             this.processingTask = Task.Factory.StartNew(ConsumeQueue, TaskCreationOptions.LongRunning);
         }
 
-        void ConsumeQueue()
+        public string FileName { get; }
+
+        public long CurrentStreamLength { get; private set; }
+
+        private void ConsumeQueue()
         {
-            while (!cancellationTokenSource.IsCancellationRequested)
+            while (!this.cancellationTokenSource.IsCancellationRequested)
             {
-                string nextString;
                 try
                 {
-                    if (q.TryTake(out nextString, Timeout.Infinite, cancellationTokenSource.Token))
+                    if (this.q.TryTake(out var nextString, Timeout.Infinite, this.cancellationTokenSource.Token))
                     {
                         try
                         {
-                            var bytes = encoding.GetBytes(nextString);
-                            CurrentStreamLength += bytes.Length + newLine.Length;
-                            if (!autoFlush)
+                            var bytes = this.encoding.GetBytes(nextString);
+
+                            CurrentStreamLength += bytes.Length + this.newLine.Length;
+
+                            if (!this.autoFlush)
                             {
-                                fileStream.Write(bytes, 0, bytes.Length);
-                                fileStream.Write(newLine, 0, newLine.Length);
+                                this.fileStream.Write(bytes, 0, bytes.Length);
+                                this.fileStream.Write(this.newLine, 0, this.newLine.Length);
                             }
                             else
                             {
-                                fileStream.Write(bytes, 0, bytes.Length);
-                                fileStream.Write(newLine, 0, newLine.Length);
-                                fileStream.Flush();
+                                this.fileStream.Write(bytes, 0, bytes.Length);
+                                this.fileStream.Write(this.newLine, 0, this.newLine.Length);
+                                this.fileStream.Flush();
                             }
                         }
                         catch (Exception ex)
                         {
-                            EtwStreamEventSource.Log.SinkError(sinkName, "FileStream Write/Flush failed", ex.ToString());
+                            EtwStreamEventSource.Log.SinkError(this.sinkName, "FileStream Write/Flush failed", ex.ToString());
                         }
                     }
                     else
@@ -97,27 +109,28 @@ namespace EtwStream
 
         public void Enqueue(string value)
         {
-            q.Add(value);
+            this.q.Add(value);
         }
 
-        public string[] Finalize()
+        public string[] MakeFinal()
         {
-            if (Interlocked.Increment(ref isDisposed) == 1)
+            if (Interlocked.Increment(ref this.isDisposed) == 1)
             {
-                cancellationTokenSource.Cancel();
-                processingTask.Wait();
+                this.cancellationTokenSource.Cancel();
+                this.processingTask.Wait();
                 try
                 {
                     this.fileStream.Close();
                 }
                 catch (Exception ex)
                 {
-                    EtwStreamEventSource.Log.SinkError(sinkName, "FileStream Dispose failed", ex.ToString());
+                    EtwStreamEventSource.Log.SinkError(this.sinkName, "FileStream Dispose failed", ex.ToString());
                 }
 
                 // rest line...
-                return q.ToArray();
+                return this.q.ToArray();
             }
+
             return null;
         }
     }

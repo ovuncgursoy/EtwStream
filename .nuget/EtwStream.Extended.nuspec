@@ -1,25 +1,26 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
     <metadata>
-        <id>EtwStream</id>
-        <version>1.3.3</version>
-        <title>EtwStream</title>
-        <authors>neuecc</authors>
-        <owners>neuecc</owners>
+        <id>EtwStream.Extended</id>
+        <version>1.4.0</version>
+        <title>EtwStream Extended</title>
+        <authors>ovuncgursoy</authors>
+        <owners>ovuncgursoy</owners>
         <requireLicenseAcceptance>false</requireLicenseAcceptance>
         <description>Logs are event streams. EtwStream provides In-Process and Out-of-Process ObservableEventListener. Everything can compose and output to anywhere by Reactive Extensions.</description>
         <releaseNotes>
             <![CDATA[
-Change dependency to System.Reactive.Linq
+Added support for enabling providers by keywords.
+Updated dependencies.
             ]]>
         </releaseNotes>
         <language>en-US</language>
         <licenseUrl>http://opensource.org/licenses/MIT</licenseUrl>
-        <projectUrl>https://github.com/neuecc/EtwStream</projectUrl>
+        <projectUrl>https://github.com/ovuncgursoy/EtwStream</projectUrl>
         <tags>ETW TraceEvent EventSource</tags>
         <dependencies>
-            <dependency id="Microsoft.Diagnostics.Tracing.TraceEvent" version="1.0.41" />
-            <dependency id="System.Reactive.Linq" version="3.0.0" />
+            <dependency id="Microsoft.Diagnostics.Tracing.TraceEvent" version="12.0.11" />
+            <dependency id="System.Reactive.Linq" version="3.1.1" />
         </dependencies>
     </metadata>
     <files>

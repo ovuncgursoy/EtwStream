@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.Tracing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿#region Using Statements
 
+using System.Diagnostics.Tracing;
+
+#endregion
+
+// ReSharper disable UnusedMember.Global
 namespace EtwStream
 {
     [EventSource(Name = "EtwStreamEventSource")]
@@ -12,17 +12,7 @@ namespace EtwStream
     {
         public static readonly EtwStreamEventSource Log = new EtwStreamEventSource();
 
-        public class Keywords
-        {
-            public const EventKeywords Logger = (EventKeywords)1;
-            public const EventKeywords Sink = (EventKeywords)2;
-            public const EventKeywords Service = (EventKeywords)4;
-        }
-
-        EtwStreamEventSource()
-        {
-
-        }
+        EtwStreamEventSource() { }
 
         [Event(1, Level = EventLevel.LogAlways, Keywords = Keywords.Logger)]
         public void LogAlways(string msg)
@@ -70,6 +60,15 @@ namespace EtwStream
         public void ServiceError(string message, string error)
         {
             WriteEvent(8, message ?? "", error ?? "");
+        }
+
+        public class Keywords
+        {
+            public const EventKeywords Logger = (EventKeywords)1;
+
+            public const EventKeywords Sink = (EventKeywords)2;
+
+            public const EventKeywords Service = (EventKeywords)4;
         }
     }
 }

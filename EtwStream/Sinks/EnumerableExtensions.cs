@@ -1,27 +1,32 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿#region Using Statements
 
+using System;
+using System.Collections.Generic;
+
+#endregion
+
+// ReSharper disable UnusedMember.Global
+// ReSharper disable once CheckNamespace
 namespace EtwStream
 {
     internal static class EnumerableExtensions
     {
         public static void FastForEach<T>(this IList<T> source, Action<T> action)
         {
-            var l = source as List<T>;
-            if (l != null)
+            if (source is List<T> l)
             {
                 l.ForEach(action);
+
                 return;
             }
 
-            var a = source as T[];
-            if (a != null)
+            if (source is T[] a)
             {
-                for (int i = 0; i < a.Length; i++)
+                foreach (var t in a)
                 {
-                    action(a[i]);
+                    action(t);
                 }
+
                 return;
             }
 

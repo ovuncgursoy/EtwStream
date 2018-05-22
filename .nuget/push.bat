@@ -1,3 +1,2 @@
-nuget push EtwStream.1.3.3.nupkg
-nuget push EtwStream.InProcess.1.3.3.nupkg
-nuget push EtwStream.LinqPad.1.3.3.nupkg
+nuget push EtwStream.Extended.1.4.0.nupkg -Source https://www.nuget.org/api/v2/package
+nuget push EtwStream.InProcess.Extended.1.4.0.nupkg -Source https://www.nuget.org/api/v2/package

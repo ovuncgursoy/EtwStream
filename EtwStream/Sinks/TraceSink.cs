@@ -1,80 +1,52 @@
-﻿using System;
+﻿#region Using Statements
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
-using System.Linq;
-using System.Reactive.Linq;
-using System.Reactive.Threading.Tasks;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 #if TRACE_EVENT
 using Microsoft.Diagnostics.Tracing;
 #endif
 
+#endregion
+
+// ReSharper disable UnusedMember.Global
+// ReSharper disable once CheckNamespace
 namespace EtwStream
 {
     public static class TraceSink
     {
-        // TraceEvent
-
-#if TRACE_EVENT
-
-        public static IDisposable LogToTrace(this IObservable<TraceEvent> source)
-        {
-            return source.Subscribe(x => Trace.WriteLine(x.EventName + ": " + x.DumpPayloadOrMessage()));
-        }
-
-        public static IDisposable LogToTrace(this IObservable<TraceEvent> source, Func<TraceEvent, string> messageFormatter)
-        {
-            return source.Subscribe(x => Trace.WriteLine(messageFormatter(x)));
-        }
-
-        public static IDisposable LogToTrace(this IObservable<IList<TraceEvent>> source)
-        {
-            return source.Subscribe(xs => xs.FastForEach(x => Trace.WriteLine(x.EventName + ": " + x.DumpPayloadOrMessage())));
-        }
-
-        public static IDisposable LogToTrace(this IObservable<IList<TraceEvent>> source, Func<TraceEvent, string> messageFormatter)
-        {
-            return source.Subscribe(xs => xs.FastForEach(x => Trace.WriteLine(messageFormatter(x))));
-        }
-
-#endif
-
-        // EventArgs
-
         public static IDisposable LogToTrace(this IObservable<EventWrittenEventArgs> source)
-        {
-            return source.Subscribe(x => Trace.WriteLine(x.EventName + ": " + x.DumpPayloadOrMessage()));
-        }
+            => source.Subscribe(x => Trace.WriteLine(x.EventName + ": " + x.DumpPayloadOrMessage()));
 
         public static IDisposable LogToTrace(this IObservable<EventWrittenEventArgs> source, Func<EventWrittenEventArgs, string> messageFormatter)
-        {
-            return source.Subscribe(x => Trace.WriteLine(messageFormatter(x)));
-        }
+            => source.Subscribe(x => Trace.WriteLine(messageFormatter(x)));
 
         public static IDisposable LogToTrace(this IObservable<IList<EventWrittenEventArgs>> source)
-        {
-            return source.Subscribe(xs => xs.FastForEach(x => Trace.WriteLine(x.EventName + ": " + x.DumpPayloadOrMessage())));
-        }
+            => source.Subscribe(xs => xs.FastForEach(x => Trace.WriteLine(x.EventName + ": " + x.DumpPayloadOrMessage())));
 
         public static IDisposable LogToTrace(this IObservable<IList<EventWrittenEventArgs>> source, Func<EventWrittenEventArgs, string> messageFormatter)
-        {
-            return source.Subscribe(xs => xs.FastForEach(x => Trace.WriteLine(messageFormatter(x))));
-        }
-
-        // String
+            => source.Subscribe(xs => xs.FastForEach(x => Trace.WriteLine(messageFormatter(x))));
 
         public static IDisposable LogToTrace(this IObservable<string> source)
-        {
-            return source.Subscribe(x => Trace.WriteLine(x));
-        }
+            => source.Subscribe(x => Trace.WriteLine(x));
 
         public static IDisposable LogToTrace(this IObservable<IList<string>> source)
-        {
-            return source.Subscribe(xs => xs.FastForEach(x => Trace.WriteLine(x)));
-        }
+            => source.Subscribe(xs => xs.FastForEach(x => Trace.WriteLine(x)));
+
+#if TRACE_EVENT
+        public static IDisposable LogToTrace(this IObservable<TraceEvent> source)
+            => source.Subscribe(x => Trace.WriteLine(x.EventName + ": " + x.DumpPayloadOrMessage()));
+
+        public static IDisposable LogToTrace(this IObservable<TraceEvent> source, Func<TraceEvent, string> messageFormatter)
+            => source.Subscribe(x => Trace.WriteLine(messageFormatter(x)));
+
+        public static IDisposable LogToTrace(this IObservable<IList<TraceEvent>> source)
+            => source.Subscribe(xs => xs.FastForEach(x => Trace.WriteLine(x.EventName + ": " + x.DumpPayloadOrMessage())));
+
+        public static IDisposable LogToTrace(this IObservable<IList<TraceEvent>> source, Func<TraceEvent, string> messageFormatter)
+            => source.Subscribe(xs => xs.FastForEach(x => Trace.WriteLine(messageFormatter(x))));
+#endif
     }
 }

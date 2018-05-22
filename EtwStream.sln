@@ -1,15 +1,14 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25123.0
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2000
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EtwStream.Core", "EtwStream.Core\EtwStream.Core.csproj", "{160A1602-5FA5-4E54-A2B0-21BD33FE06F3}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{492B475A-D99D-4C78-B707-45DFCB290BF4}"
 	ProjectSection(SolutionItems) = preProject
-		.nuget\EtwStream.InProcess.nuspec = .nuget\EtwStream.InProcess.nuspec
-		.nuget\EtwStream.LinqPad.nuspec = .nuget\EtwStream.LinqPad.nuspec
-		.nuget\EtwStream.nuspec = .nuget\EtwStream.nuspec
+		.nuget\EtwStream.Extended.nuspec = .nuget\EtwStream.Extended.nuspec
+		.nuget\EtwStream.InProcess.Extended.nuspec = .nuget\EtwStream.InProcess.Extended.nuspec
 		.nuget\NuGet.Config = .nuget\NuGet.Config
 		.nuget\NuGet.exe = .nuget\NuGet.exe
 		.nuget\NuGet.targets = .nuget\NuGet.targets
@@ -32,8 +31,8 @@ EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		EtwStream\EtwStream.projitems*{0c93f26e-3886-4d66-80ea-341896b91a95}*SharedItemsImports = 4
-		EtwStream\EtwStream.projitems*{7d6b5012-7065-4177-9c8a-46766c41aa59}*SharedItemsImports = 13
 		EtwStream\EtwStream.projitems*{160a1602-5fa5-4e54-a2b0-21bd33fe06f3}*SharedItemsImports = 4
+		EtwStream\EtwStream.projitems*{7d6b5012-7065-4177-9c8a-46766c41aa59}*SharedItemsImports = 13
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -67,5 +66,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D062CCE5-8936-4A0C-ABDE-3EFB32B4632A}
 	EndGlobalSection
 EndGlobal

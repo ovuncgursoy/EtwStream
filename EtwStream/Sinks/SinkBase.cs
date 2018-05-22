@@ -1,45 +1,36 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿#region Using Statements
 
+using System;
+using System.Collections.Generic;
+using System.Threading;
+
+#endregion
+
+// ReSharper disable UnusedMember.Global
+// ReSharper disable once CheckNamespace
 namespace EtwStream
 {
     public abstract class SinkBase<T> : IObserver<T>, IObserver<IList<T>>, IDisposable
     {
-        public SinkBase()
-        {
-
-        }
-
-        public abstract void OnNext(IList<T> value);
         public abstract void Dispose();
 
+        public abstract void OnNext(IList<T> value);
+
         public virtual void OnNext(T value)
-        {
-            OnNext(new[] { value });
-        }
+            => OnNext(new[] { value });
 
         public virtual void OnError(Exception error)
-        {
-            Dispose();
-        }
+            => Dispose();
 
         public virtual void OnCompleted()
-        {
-            Dispose();
-        }
+            => Dispose();
 
-        public IDisposable CreateLinkedDisposable(IDisposable subscription)
-        {
-            //stop subscription first, after flush self.
-            return new BinaryCompositeDisposable(subscription, this);
-        }
+        public IDisposable CreateLinkedDisposable(IDisposable subscription) => new BinaryCompositeDisposable(subscription, this);
 
-        class BinaryCompositeDisposable : IDisposable
+        private class BinaryCompositeDisposable : IDisposable
         {
             private volatile IDisposable disposable1;
+
             private volatile IDisposable disposable2;
 
             public BinaryCompositeDisposable(IDisposable disposable1, IDisposable disposable2)
@@ -51,20 +42,14 @@ namespace EtwStream
             public void Dispose()
             {
 #pragma warning disable 0420
-                var old1 = System.Threading.Interlocked.Exchange(ref disposable1, null);
+                var old1 = Interlocked.Exchange(ref this.disposable1, null);
 #pragma warning restore 0420
-                if (old1 != null)
-                {
-                    old1.Dispose();
-                }
+                old1?.Dispose();
 
 #pragma warning disable 0420
-                var old2 = System.Threading.Interlocked.Exchange(ref disposable2, null);
+                var old2 = Interlocked.Exchange(ref this.disposable2, null);
 #pragma warning restore 0420
-                if (old2 != null)
-                {
-                    old2.Dispose();
-                }
+                old2?.Dispose();
             }
         }
     }

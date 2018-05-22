@@ -14,7 +14,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)EventWrittenEventArgsExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Json\TinyJson.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ObservableEventListener.EventSource.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ObservableEventListener.Tail.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Sinks\AsyncFileWriter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Sinks\ConsoleSink.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Sinks\DebugSink.cs" />

@@ -1,53 +1,52 @@
-﻿using System;
-using System.Collections.Generic;
+﻿#region Using Statements
+
+using System;
+using System.Collections.Concurrent;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Diagnostics.Tracing;
-using System.Collections.Concurrent;
-using System.Collections.ObjectModel;
 using System.Xml.Linq;
+
+using EtwStream.Json;
+
+using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Parsers;
+
+#endregion
 
 namespace EtwStream
 {
     public static class TraceEventExtensions
     {
-        //{ providerGuid : { eventId: KeywordName }}
-        readonly static ConcurrentDictionary<Guid, ReadOnlyDictionary<int, string>> cache = new ConcurrentDictionary<Guid, ReadOnlyDictionary<int, string>>();
+        private static readonly ConcurrentDictionary<Guid, ReadOnlyDictionary<int, string>> Cache
+            = new ConcurrentDictionary<Guid, ReadOnlyDictionary<int, string>>();
 
         internal static void CacheSchema(ProviderManifest manifest)
         {
-            var xElem = XElement.Parse(manifest.Manifest);
-            var ns = xElem.DescendantsAndSelf().First(x => x.Name.LocalName != "Event").Name.Namespace;
+            var manifestXml = XElement.Parse(manifest.Manifest);
+            var manifestNamespace = manifestXml.DescendantsAndSelf().First(x => x.Name.LocalName != "Event").Name.Namespace;
 
-            // { tid : {[payloadNames]}}
-            var tidRef = xElem.Descendants(ns + "template")
-                .ToDictionary(x => x.Attribute("tid").Value, x => new ReadOnlyCollection<string>(
-                    x.Elements(ns + "data")
-                    .Select(y => y.Attribute("name").Value)
+            var unused = manifestXml
+                .Descendants(manifestNamespace + "template")
+                .ToDictionary(x => x.Attribute("tid")?.Value, x => new ReadOnlyCollection<string>(x.Elements(manifestNamespace + "data")
+                    .Select(y => y.Attribute("name")?.Value)
                     .ToArray()));
 
-            var dict = xElem.Descendants(ns + "event")
+            var manifestEvents = manifestXml
+                .Descendants(manifestNamespace + "event")
                 .ToDictionary(
-                    x => int.Parse(x.Attribute("value").Value),
+                    x => int.Parse(x.Attribute("value")?.Value ?? throw new InvalidOperationException()),
                     x => x.Attribute("keywords")?.Value ?? "");
 
-            var readOnlyDict = new ReadOnlyDictionary<int, string>(dict);
-            cache[manifest.Guid] = readOnlyDict;
+            Cache[manifest.Guid] = new ReadOnlyDictionary<int, string>(manifestEvents);
         }
 
         public static string GetKeywordName(this TraceEvent traceEvent)
-        {
-            ReadOnlyDictionary<int, string> schema;
-            string name;
-            return cache.TryGetValue(traceEvent.ProviderGuid, out schema)
-                ? schema.TryGetValue((int)traceEvent.ID, out name)
-                    ? name
-                    : traceEvent.Keywords.ToString()
+            => Cache.TryGetValue(traceEvent.ProviderGuid, out var schema)
+                ? schema.TryGetValue((int)traceEvent.ID, out var name) ? name
+                : traceEvent.Keywords.ToString()
                 : traceEvent.Keywords.ToString();
-        }
 
         public static ConsoleColor? GetColorMap(this TraceEvent traceEvent, bool isBackgroundWhite)
         {
@@ -74,24 +73,33 @@ namespace EtwStream
         {
             var names = traceEvent.PayloadNames;
 
-            var sb = new StringBuilder();
-            sb.Append("{");
+            var stringBuilder = new StringBuilder();
+
+            stringBuilder.Append("{");
+
             var count = names.Length;
-            for (int i = 0; i < count; i++)
+
+            for (var i = 0; i < count; i++)
             {
-                if (i != 0) sb.Append(", ");
+                if (i != 0)
+                {
+                    stringBuilder.Append(", ");
+                }
+
                 var name = names[i];
                 var value = traceEvent.PayloadString(i);
-                sb.Append(name).Append(": ").Append(value);
+                stringBuilder.Append(name).Append(": ").Append(value);
             }
-            sb.Append("}");
 
-            return sb.ToString();
+            stringBuilder.Append("}");
+
+            return stringBuilder.ToString();
         }
 
         public static string DumpPayloadOrMessage(this TraceEvent traceEvent)
         {
             var msg = traceEvent.FormattedMessage;
+
             return string.IsNullOrWhiteSpace(msg) ? traceEvent.DumpPayload() : msg;
         }
 
@@ -100,21 +108,25 @@ namespace EtwStream
             var names = traceEvent.PayloadNames;
             var count = names.Length;
 
-            using (var sw = new StringWriter())
-            using (var jw = new Json.TinyJsonWriter(sw))
+            using (var stringWriter = new StringWriter())
+            using (var jsonWriter = new TinyJsonWriter(stringWriter))
             {
-                jw.WriteStartObject();
-                for (int i = 0; i < count; i++)
+                jsonWriter.WriteStartObject();
+
+                for (var i = 0; i < count; i++)
                 {
                     var name = names[i];
                     var value = traceEvent.PayloadString(i);
 
-                    jw.WritePropertyName(name);
-                    jw.WriteValue(value);
+                    jsonWriter.WritePropertyName(name);
+                    jsonWriter.WriteValue(value);
                 }
-                jw.WriteEndObject();
-                sw.Flush();
-                return sw.ToString();
+
+                jsonWriter.WriteEndObject();
+
+                stringWriter.Flush();
+
+                return stringWriter.ToString();
             }
         }
     }

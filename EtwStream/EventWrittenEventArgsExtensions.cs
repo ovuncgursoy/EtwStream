@@ -1,6 +1,7 @@
-﻿using System;
+﻿#region Using Statements
+
+using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.Tracing;
 using System.IO;
@@ -8,115 +9,115 @@ using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 
+using EtwStream.Json;
+
+#endregion
+
+// ReSharper disable UnusedMember.Global
 namespace EtwStream
 {
     public static class EventWrittenEventArgsExtensions
     {
-        // { EventSource : { EventId, EventSchemaPortion } }
-        readonly static ConcurrentDictionary<System.Diagnostics.Tracing.EventSource, ReadOnlyDictionary<int, EventSchemaPortion>> cache = new ConcurrentDictionary<System.Diagnostics.Tracing.EventSource, ReadOnlyDictionary<int, EventSchemaPortion>>();
+        private static readonly ConcurrentDictionary<EventSource, ReadOnlyDictionary<int, EventSchemaPortion>> Cache
+            = new ConcurrentDictionary<EventSource, ReadOnlyDictionary<int, EventSchemaPortion>>();
 
-        static ReadOnlyDictionary<int, EventSchemaPortion> GetEventSchemaPortions(System.Diagnostics.Tracing.EventSource source)
+        static ReadOnlyDictionary<int, EventSchemaPortion> GetEventSchemaPortions(EventSource source)
         {
-            return cache.GetOrAdd(source, s => // no needs lock
+            return Cache.GetOrAdd(source, s =>
             {
-                var manifest = System.Diagnostics.Tracing.EventSource.GenerateManifest(s.GetType(), null);
+                var manifest = EventSource.GenerateManifest(s.GetType(), null);
 
-                var xElem = XElement.Parse(manifest);
-                var ns = xElem.Name.Namespace;
+                var manifestXml = XElement.Parse(manifest);
+                var manifestNamespace = manifestXml.Name.Namespace;
 
-                // { tid : {[payloadNames]}}
-                var tidRef = xElem.Descendants(ns + "template")
-                    .ToDictionary(x => x.Attribute("tid").Value, x => new ReadOnlyCollection<string>(
-                        x.Elements(ns + "data")
-                        .Select(y => y.Attribute("name").Value)
+                var tidReferences = manifestXml
+                    .Descendants(manifestNamespace + "template")
+                    .ToDictionary(x => x.Attribute("tid")?.Value, x => new ReadOnlyCollection<string>(x.Elements(manifestNamespace + "data")
+                        .Select(y => y.Attribute("name")?.Value)
                         .ToArray()));
 
-                var dict = xElem.Descendants(ns + "event")
-                    .ToDictionary(x => int.Parse(x.Attribute("value").Value), x => new EventSchemaPortion(
-                        x.Attribute("template")?.Value != null ? tidRef[x.Attribute("template").Value] : new string[0].ToList().AsReadOnly(),
+                var manifestEvents = manifestXml.Descendants(manifestNamespace + "event")
+                    .ToDictionary(x => int.Parse(x.Attribute("value")?.Value ?? throw new InvalidOperationException()), x => new EventSchemaPortion(
+                        x.Attribute("template")?.Value != null ? tidReferences[x.Attribute("template")?.Value ?? throw new InvalidOperationException()] : new string[0].ToList().AsReadOnly(),
                         x.Attribute("keywords")?.Value ?? "",
-                        x.Attribute("task")?.Value ?? x.Attribute("symbol").Value));
+                        x.Attribute("task")?.Value ?? x.Attribute("symbol")?.Value));
 
-                return new ReadOnlyDictionary<int, EventSchemaPortion>(dict);
+                return new ReadOnlyDictionary<int, EventSchemaPortion>(manifestEvents);
             });
         }
 
-        /// <summary>
-        /// Get PeyloadNames from EventSource manifest.
-        /// </summary>
-        public static ReadOnlyCollection<string> GetPayloadNames(this System.Diagnostics.Tracing.EventWrittenEventArgs eventArgs)
+        public static ReadOnlyCollection<string> GetPayloadNames(this EventWrittenEventArgs eventArgs)
         {
             var source = eventArgs.EventSource;
             var templates = GetEventSchemaPortions(source);
 
-            EventSchemaPortion portion;
-            return templates.TryGetValue(eventArgs.EventId, out portion)
+            return templates.TryGetValue(eventArgs.EventId, out var portion)
                 ? portion.Payload
                 : eventArgs.PayloadNames;
         }
 
-        /// <summary>
-        /// Get KeywordDescription from EventSource manifest.
-        /// </summary>
-        public static string GetKeywordName(this System.Diagnostics.Tracing.EventWrittenEventArgs eventArgs)
+        public static string GetKeywordName(this EventWrittenEventArgs eventArgs)
         {
             var source = eventArgs.EventSource;
             var templates = GetEventSchemaPortions(source);
-            
-            EventSchemaPortion portion;
-            return templates.TryGetValue(eventArgs.EventId, out portion)
+
+            return templates.TryGetValue(eventArgs.EventId, out var portion)
                 ? portion.KeywordDesciption
-                : eventArgs.Keywords.ToString(); // can't get Keywords...
+                : eventArgs.Keywords.ToString();
         }
 
-        /// <summary>
-        /// Get TaskName from EventSource manifest.
-        /// </summary>
-        public static string GetTaskName(this System.Diagnostics.Tracing.EventWrittenEventArgs eventArgs)
+        public static string GetTaskName(this EventWrittenEventArgs eventArgs)
         {
             var source = eventArgs.EventSource;
             var templates = GetEventSchemaPortions(source);
-            
-            EventSchemaPortion portion;
-            return templates.TryGetValue(eventArgs.EventId, out portion)
+
+            return templates.TryGetValue(eventArgs.EventId, out var portion)
                 ? portion.TaskName
-                : eventArgs.Task.ToString(); // can't get TaskName...
+                : eventArgs.Task.ToString();
         }
 
-        public static string DumpFormattedMessage(this System.Diagnostics.Tracing.EventWrittenEventArgs eventArgs)
+        public static string DumpFormattedMessage(this EventWrittenEventArgs eventArgs)
         {
             var msg = eventArgs.Message;
-            if (string.IsNullOrWhiteSpace(msg)) return msg;
 
-            return string.Format(msg, eventArgs.Payload.ToArray());
+            return string.IsNullOrWhiteSpace(msg) ? msg : string.Format(msg, eventArgs.Payload.ToArray());
         }
 
-        public static string DumpPayload(this System.Diagnostics.Tracing.EventWrittenEventArgs eventArgs)
+        public static string DumpPayload(this EventWrittenEventArgs eventArgs)
         {
             var names = eventArgs.GetPayloadNames();
 
-            var sb = new StringBuilder();
-            sb.Append("{");
+            var stringBuilder = new StringBuilder();
+
+            stringBuilder.Append("{");
+
             var count = eventArgs.Payload.Count;
-            for (int i = 0; i < count; i++)
+
+            for (var i = 0; i < count; i++)
             {
-                if (i != 0) sb.Append(", ");
+                if (i != 0)
+                {
+                    stringBuilder.Append(", ");
+                }
+
                 var name = names[i];
                 var value = eventArgs.Payload[i];
-                sb.Append(name).Append(": ").Append(value);
+                stringBuilder.Append(name).Append(": ").Append(value);
             }
-            sb.Append("}");
 
-            return sb.ToString();
+            stringBuilder.Append("}");
+
+            return stringBuilder.ToString();
         }
 
-        public static string DumpPayloadOrMessage(this System.Diagnostics.Tracing.EventWrittenEventArgs eventArgs)
+        public static string DumpPayloadOrMessage(this EventWrittenEventArgs eventArgs)
         {
             var msg = eventArgs.Message;
+
             return string.IsNullOrWhiteSpace(msg) ? eventArgs.DumpPayload() : DumpFormattedMessage(eventArgs);
         }
 
-        public static ConsoleColor? GetColorMap(this System.Diagnostics.Tracing.EventWrittenEventArgs eventArgs, bool isBackgroundWhite)
+        public static ConsoleColor? GetColorMap(this EventWrittenEventArgs eventArgs, bool isBackgroundWhite)
         {
             switch (eventArgs.Level)
             {
@@ -137,43 +138,46 @@ namespace EtwStream
             }
         }
 
-        public static string ToJson(this System.Diagnostics.Tracing.EventWrittenEventArgs eventArgs)
+        public static string ToJson(this EventWrittenEventArgs eventArgs)
         {
             var names = eventArgs.PayloadNames;
             var count = names.Count;
 
-            using (var sw = new StringWriter())
-            using (var jw = new Json.TinyJsonWriter(sw))
+            using (var stringWriter = new StringWriter())
+            using (var jsonWriter = new TinyJsonWriter(stringWriter))
             {
-                jw.WriteStartObject();
-                for (int i = 0; i < count; i++)
+                jsonWriter.WriteStartObject();
+
+                for (var i = 0; i < count; i++)
                 {
                     var name = names[i];
                     var value = eventArgs.Payload[i];
 
-                    jw.WritePropertyName(name);
-                    jw.WriteValue(value);
+                    jsonWriter.WritePropertyName(name);
+                    jsonWriter.WriteValue(value);
                 }
-                jw.WriteEndObject();
-                sw.Flush();
-                return sw.ToString();
+
+                jsonWriter.WriteEndObject();
+                stringWriter.Flush();
+
+                return stringWriter.ToString();
             }
         }
     }
 
-    /// <summary>
-    /// A portion of EventSchema to be required.
-    /// </summary>
-    class EventSchemaPortion
+    internal class EventSchemaPortion
     {
-        internal ReadOnlyCollection<string> Payload { get; }
-        internal string KeywordDesciption { get; }
-        internal string TaskName { get; }
         internal EventSchemaPortion(ReadOnlyCollection<string> payload, string keywordDescription, string taskName)
         {
             Payload = payload;
             KeywordDesciption = keywordDescription;
             TaskName = taskName;
         }
+
+        internal ReadOnlyCollection<string> Payload { get; }
+
+        internal string KeywordDesciption { get; }
+
+        internal string TaskName { get; }
     }
 }

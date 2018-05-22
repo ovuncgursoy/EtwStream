@@ -1,11 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reactive.Disposables;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+﻿#region Using Statements
 
+using System;
+using System.Reactive.Disposables;
+
+#endregion
+
+// ReSharper disable UnusedMember.Global
 namespace EtwStream
 {
     public interface ISubscriptionContainer
@@ -15,16 +15,16 @@ namespace EtwStream
 
     public class SubscriptionContainer : ISubscriptionContainer
     {
-        readonly CompositeDisposable subscriptions = new CompositeDisposable();
+        private readonly CompositeDisposable subscriptions = new CompositeDisposable();
 
         public void Add(IDisposable subscription)
         {
-            subscriptions.Add(subscription);
+            this.subscriptions.Add(subscription);
         }
 
         public void Dispose()
         {
-            subscriptions.Dispose();
+            this.subscriptions.Dispose();
         }
     }
 

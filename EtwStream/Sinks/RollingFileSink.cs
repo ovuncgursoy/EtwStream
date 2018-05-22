@@ -1,161 +1,116 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿#region Using Statements
+
+using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Reactive.Linq;
-using System.Reactive.Threading.Tasks;
 using System.Diagnostics.Tracing;
+using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
+
 #if TRACE_EVENT
 using Microsoft.Diagnostics.Tracing;
 #endif
 
+#endregion
+
+// ReSharper disable UnusedMember.Global
+// ReSharper disable once CheckNamespace
 namespace EtwStream
 {
     public static class RollingFileSink
     {
-        // TraceEvent
-
-#if TRACE_EVENT
-
-        /// <summary>
-        /// Write to text file, file is rolled.
-        /// </summary>
-        /// <param name="source">Event source.</param>
-        /// <param name="fileNameSelector">Selector of output file name. DateTime is date of file open time, int is number sequence.</param>
-        /// <param name="timestampPattern">Pattern of rolling identifier. DateTime is write time of message. If pattern is different roll new file.</param>
-        /// <param name="rollSizeKB">Size of start next file.</param>
-        /// <param name="messageFormatter">Converter of message per line.</param>
-        /// <param name="encoding">String encoding.</param>
-        /// <param name="autoFlush">If true, call Flush on every write.</param>
-        public static IDisposable LogToRollingFile(this IObservable<TraceEvent> source, Func<DateTime, int, string> fileNameSelector, Func<DateTime, string> timestampPattern, int rollSizeKB, Func<TraceEvent, string> messageFormatter, Encoding encoding, bool autoFlush)
+        public static IDisposable LogToRollingFile(this IObservable<EventWrittenEventArgs> source,
+            Func<DateTime, int, string> fileNameSelector,
+            Func<DateTime, string> timestampPattern,
+            int rollSizeKb,
+            Func<EventWrittenEventArgs, string> messageFormatter,
+            Encoding encoding,
+            bool autoFlush)
         {
-            var sink = new TraceEventSink(fileNameSelector, timestampPattern, rollSizeKB, messageFormatter, encoding, autoFlush);
+            var sink = new EventWrittenEventArgsSink(fileNameSelector, timestampPattern, rollSizeKb, messageFormatter, encoding, autoFlush);
+
             var subscription = source.Subscribe(sink);
+
             return sink.CreateLinkedDisposable(subscription);
         }
 
-        /// <summary>
-        /// Write to text file, file is rolled.
-        /// </summary>
-        /// <param name="source">Event source.</param>
-        /// <param name="fileNameSelector">Selector of output file name. DateTime is date of file open time, int is number sequence.</param>
-        /// <param name="timestampPattern">Pattern of rolling identifier. DateTime is write time of message. If pattern is different roll new file.</param>
-        /// <param name="rollSizeKB">Size of start next file.</param>
-        /// <param name="messageFormatter">Converter of message per line.</param>
-        /// <param name="encoding">String encoding.</param>
-        /// <param name="autoFlush">If true, call Flush on every write.</param>
-        public static IDisposable LogToRollingFile(this IObservable<IList<TraceEvent>> source, Func<DateTime, int, string> fileNameSelector, Func<DateTime, string> timestampPattern, int rollSizeKB, Func<TraceEvent, string> messageFormatter, Encoding encoding, bool autoFlush)
+        public static IDisposable LogToRollingFile(this IObservable<IList<EventWrittenEventArgs>> source,
+            Func<DateTime, int, string> fileNameSelector,
+            Func<DateTime, string> timestampPattern,
+            int rollSizeKb,
+            Func<EventWrittenEventArgs, string> messageFormatter,
+            Encoding encoding,
+            bool autoFlush)
         {
-            var sink = new TraceEventSink(fileNameSelector, timestampPattern, rollSizeKB, messageFormatter, encoding, autoFlush);
+            var sink = new EventWrittenEventArgsSink(fileNameSelector, timestampPattern, rollSizeKb, messageFormatter, encoding, autoFlush);
+
             var subscription = source.Subscribe(sink);
+
             return sink.CreateLinkedDisposable(subscription);
         }
 
-#endif
-
-        // EventArgs
-
-        /// <summary>
-        /// Write to text file, file is rolled.
-        /// </summary>
-        /// <param name="source">Event source.</param>
-        /// <param name="fileNameSelector">Selector of output file name. DateTime is date of file open time, int is number sequence.</param>
-        /// <param name="timestampPattern">Pattern of rolling identifier. DateTime is write time of message. If pattern is different roll new file.</param>
-        /// <param name="rollSizeKB">Size of start next file.</param>
-        /// <param name="messageFormatter">Converter of message per line.</param>
-        /// <param name="encoding">String encoding.</param>
-        /// <param name="autoFlush">If true, call Flush on every write.</param>
-        public static IDisposable LogToRollingFile(this IObservable<EventWrittenEventArgs> source, Func<DateTime, int, string> fileNameSelector, Func<DateTime, string> timestampPattern, int rollSizeKB, Func<EventWrittenEventArgs, string> messageFormatter, Encoding encoding, bool autoFlush)
+        public static IDisposable LogToRollingFile(this IObservable<string> source,
+            Func<DateTime, int, string> fileNameSelector,
+            Func<DateTime, string> timestampPattern,
+            int rollSizeKb,
+            Encoding encoding,
+            bool autoFlush)
         {
-            var sink = new EventWrittenEventArgsSink(fileNameSelector, timestampPattern, rollSizeKB, messageFormatter, encoding, autoFlush);
+            var sink = new StringSink(fileNameSelector, timestampPattern, rollSizeKb, encoding, autoFlush);
+
             var subscription = source.Subscribe(sink);
+
             return sink.CreateLinkedDisposable(subscription);
         }
 
-        /// <summary>
-        /// Write to text file, file is rolled.
-        /// </summary>
-        /// <param name="source">Event source.</param>
-        /// <param name="fileNameSelector">Selector of output file name. DateTime is date of file open time, int is number sequence.</param>
-        /// <param name="timestampPattern">Pattern of rolling identifier. DateTime is write time of message. If pattern is different roll new file.</param>
-        /// <param name="rollSizeKB">Size of start next file.</param>
-        /// <param name="messageFormatter">Converter of message per line.</param>
-        /// <param name="encoding">String encoding.</param>
-        /// <param name="autoFlush">If true, call Flush on every write.</param>
-        public static IDisposable LogToRollingFile(this IObservable<IList<EventWrittenEventArgs>> source, Func<DateTime, int, string> fileNameSelector, Func<DateTime, string> timestampPattern, int rollSizeKB, Func<EventWrittenEventArgs, string> messageFormatter, Encoding encoding, bool autoFlush)
+        public static IDisposable LogToRollingFile(this IObservable<IList<string>> source,
+            Func<DateTime, int, string> fileNameSelector,
+            Func<DateTime, string> timestampPattern,
+            int rollSizeKb,
+            Encoding encoding,
+            bool autoFlush)
         {
-            var sink = new EventWrittenEventArgsSink(fileNameSelector, timestampPattern, rollSizeKB, messageFormatter, encoding, autoFlush);
+            var sink = new StringSink(fileNameSelector, timestampPattern, rollSizeKb, encoding, autoFlush);
+
             var subscription = source.Subscribe(sink);
+
             return sink.CreateLinkedDisposable(subscription);
         }
-
-        // string
-
-        /// <summary>
-        /// Write to text file, file is rolled.
-        /// </summary>
-        /// <param name="source">Event source.</param>
-        /// <param name="fileNameSelector">Selector of output file name. DateTime is date of file open time, int is number sequence.</param>
-        /// <param name="timestampPattern">Pattern of rolling identifier. DateTime is write time of message. If pattern is different roll new file.</param>
-        /// <param name="rollSizeKB">Size of start next file.</param>
-        /// <param name="encoding">String encoding.</param>
-        /// <param name="autoFlush">If true, call Flush on every write.</param>
-        public static IDisposable LogToRollingFile(this IObservable<string> source, Func<DateTime, int, string> fileNameSelector, Func<DateTime, string> timestampPattern, int rollSizeKB, Encoding encoding, bool autoFlush)
-        {
-            var sink = new StringSink(fileNameSelector, timestampPattern, rollSizeKB, encoding, autoFlush);
-            var subscription = source.Subscribe(sink);
-            return sink.CreateLinkedDisposable(subscription);
-        }
-
-        /// <summary>
-        /// Write to text file, file is rolled.
-        /// </summary>
-        /// <param name="source">Event source.</param>
-        /// <param name="fileNameSelector">Selector of output file name. DateTime is date of file open time, int is number sequence.</param>
-        /// <param name="timestampPattern">Pattern of rolling identifier. DateTime is write time of message. If pattern is different roll new file.</param>
-        /// <param name="rollSizeKB">Size of start next file.</param>
-        /// <param name="encoding">String encoding.</param>
-        /// <param name="autoFlush">If true, call Flush on every write.</param>
-        public static IDisposable LogToRollingFile(this IObservable<IList<string>> source, Func<DateTime, int, string> fileNameSelector, Func<DateTime, string> timestampPattern, int rollSizeKB, Encoding encoding, bool autoFlush)
-        {
-            var sink = new StringSink(fileNameSelector, timestampPattern, rollSizeKB, encoding, autoFlush);
-            var subscription = source.Subscribe(sink);
-            return sink.CreateLinkedDisposable(subscription);
-        }
-
-        // Sinks
 
         abstract class RollingFileSinkBase<T> : SinkBase<T>
         {
-            static readonly Regex NumberRegex = new Regex("(\\d)+$", RegexOptions.Compiled);
+            // ReSharper disable once StaticMemberInGenericType
+            private static readonly Regex NumberRegex = new Regex("(\\d)+$", RegexOptions.Compiled);
 
-            readonly object newFileLock = new object();
-            protected readonly Func<T, string> messageFormatter;
-            readonly Func<DateTime, string> timestampPattern;
-            readonly Func<DateTime, int, string> fileNameSelector;
-            readonly Encoding encoding;
-            readonly bool autoFlush;
-            readonly long rollSizeInBytes;
-            readonly Action<T> onNextCore;
+            private readonly bool autoFlush;
 
-            string currentTimestampPattern;
+            private readonly Encoding encoding;
 
-            protected AsyncFileWriter asyncFileWriter;
+            private readonly Func<DateTime, int, string> fileNameSelector;
 
-            public RollingFileSinkBase(
-                 Func<DateTime, int, string> fileNameSelector,
-                 Func<DateTime, string> timestampPattern,
-                 int rollSizeKB,
-                 Func<T, string> messageFormatter,
-                 Encoding encoding,
-                 bool autoFlush)
+            private readonly Func<T, string> MessageFormatter;
+
+            private readonly object newFileLock = new object();
+
+            private readonly Action<T> onNextCore;
+
+            private readonly long rollSizeInBytes;
+
+            private readonly Func<DateTime, string> timestampPattern;
+
+            private AsyncFileWriter AsyncFileWriter;
+
+            private string currentTimestampPattern;
+
+            protected RollingFileSinkBase(
+                Func<DateTime, int, string> fileNameSelector,
+                Func<DateTime, string> timestampPattern,
+                int rollSizeKB,
+                Func<T, string> messageFormatter,
+                Encoding encoding,
+                bool autoFlush)
             {
-                this.messageFormatter = messageFormatter;
+                this.MessageFormatter = messageFormatter;
                 this.timestampPattern = timestampPattern;
                 this.fileNameSelector = fileNameSelector;
                 this.rollSizeInBytes = rollSizeKB * 1024;
@@ -166,14 +121,14 @@ namespace EtwStream
                 ValidateFileNameSelector();
             }
 
-            void ValidateFileNameSelector()
+            private void ValidateFileNameSelector()
             {
                 var now = DateTime.Now;
-                var fileName1 = Path.GetFileNameWithoutExtension(fileNameSelector(now, 0));
-                var fileName2 = Path.GetFileNameWithoutExtension(fileNameSelector(now, 1));
+                var fileName1 = Path.GetFileNameWithoutExtension(this.fileNameSelector(now, 0));
+                var fileName2 = Path.GetFileNameWithoutExtension(this.fileNameSelector(now, 1));
 
-
-                if (!NumberRegex.IsMatch(fileName1) || !NumberRegex.IsMatch(fileName2))
+                if (!NumberRegex.IsMatch(fileName1 ?? throw new InvalidOperationException())
+                    || !NumberRegex.IsMatch(fileName2 ?? throw new InvalidOperationException()))
                 {
                     throw new ArgumentException("fileNameSelector is invalid format, must be int(sequence no) is last.");
                 }
@@ -181,9 +136,7 @@ namespace EtwStream
                 var seqStr1 = NumberRegex.Match(fileName1).Groups[0].Value;
                 var seqStr2 = NumberRegex.Match(fileName2).Groups[0].Value;
 
-                int seq1;
-                int seq2;
-                if (!int.TryParse(seqStr1, out seq1) || !int.TryParse(seqStr2, out seq2))
+                if (!int.TryParse(seqStr1, out var seq1) || !int.TryParse(seqStr2, out var seq2))
                 {
                     throw new ArgumentException("fileNameSelector is invalid format, must be int(sequence no) is last.");
                 }
@@ -194,13 +147,15 @@ namespace EtwStream
                 }
             }
 
-            protected void CheckFileRolling()
+            private void CheckFileRolling()
             {
                 var now = DateTime.Now;
+
                 string ts;
+
                 try
                 {
-                    ts = timestampPattern(now);
+                    ts = this.timestampPattern(now);
                 }
                 catch (Exception ex)
                 {
@@ -208,31 +163,35 @@ namespace EtwStream
                     return;
                 }
 
-                // needs to create next file
-                var disposeTarget = asyncFileWriter;
-                if (disposeTarget == null || ts != currentTimestampPattern || disposeTarget?.CurrentStreamLength >= rollSizeInBytes)
+                var disposeTarget = this.AsyncFileWriter;
+
+                if (disposeTarget == null || ts != this.currentTimestampPattern || disposeTarget.CurrentStreamLength >= this.rollSizeInBytes)
                 {
-                    lock (newFileLock)
+                    lock (this.newFileLock)
                     {
-                        if (this.asyncFileWriter == disposeTarget)
+                        if (this.AsyncFileWriter == disposeTarget)
                         {
-                            int sequenceNo = 0;
+                            var sequenceNo = 0;
+
                             if (disposeTarget != null)
                             {
-                                sequenceNo = ExtractCurrentSequence(asyncFileWriter.FileName) + 1;
+                                sequenceNo = ExtractCurrentSequence(this.AsyncFileWriter.FileName) + 1;
                             }
 
                             string fn = null;
+
                             while (true)
                             {
                                 try
                                 {
-                                    var newFn = fileNameSelector(now, sequenceNo);
+                                    var newFn = this.fileNameSelector(now, sequenceNo);
+
                                     if (fn == newFn)
                                     {
                                         EtwStreamEventSource.Log.SinkError(nameof(RollingFileSink), "fileNameSelector indicate same filname", "");
                                         return;
                                     }
+
                                     fn = newFn;
                                 }
                                 catch (Exception ex)
@@ -242,143 +201,169 @@ namespace EtwStream
                                 }
 
                                 var fi = new FileInfo(fn);
+
                                 if (fi.Exists)
                                 {
-                                    if (fi.Length >= rollSizeInBytes)
+                                    if (fi.Length >= this.rollSizeInBytes)
                                     {
                                         sequenceNo++;
                                         continue;
                                     }
                                 }
+
                                 break;
                             }
 
                             string[] safe;
+
                             try
                             {
-                                safe = disposeTarget?.Finalize(); // block!
+                                safe = disposeTarget?.MakeFinal();
                             }
                             catch (Exception ex)
                             {
                                 EtwStreamEventSource.Log.SinkError(nameof(RollingFileSink), "Can't dispose fileStream", ex.ToString());
+
                                 return;
                             }
+
                             try
                             {
-                                asyncFileWriter = new AsyncFileWriter(nameof(RollingFileSink), fn, encoding, autoFlush);
-                                currentTimestampPattern = ts;
+                                this.AsyncFileWriter = new AsyncFileWriter(nameof(RollingFileSink), fn, this.encoding, this.autoFlush);
+
+                                this.currentTimestampPattern = ts;
+
                                 if (safe != null)
                                 {
                                     foreach (var item in safe)
                                     {
-                                        asyncFileWriter.Enqueue(item);
+                                        this.AsyncFileWriter.Enqueue(item);
                                     }
                                 }
                             }
                             catch (Exception ex)
                             {
                                 EtwStreamEventSource.Log.SinkError(nameof(RollingFileSink), "Can't create FileStream", ex.ToString());
-                                return;
                             }
                         }
                     }
                 }
             }
 
-            static int ExtractCurrentSequence(string fileName)
+            private static int ExtractCurrentSequence(string fileName)
             {
-                int extensionDotIndex = fileName.LastIndexOf('.');
-
                 fileName = Path.GetFileNameWithoutExtension(fileName);
 
-                var sequenceString = NumberRegex.Match(fileName).Groups[0].Value;
-                int seq;
-                if (int.TryParse(sequenceString, out seq))
-                {
-                    return seq;
-                }
-                else
-                {
-                    return 0;
-                }
+                var sequenceString = NumberRegex.Match(fileName ?? throw new ArgumentNullException(nameof(fileName))).Groups[0].Value;
+
+                return int.TryParse(sequenceString, out var seq) ? seq : 0;
             }
 
             public override void OnNext(T value)
             {
                 CheckFileRolling();
+
                 OnNextCore(value);
             }
 
             public override void OnNext(IList<T> value)
             {
                 CheckFileRolling();
-                value.FastForEach(onNextCore);
+
+                value.FastForEach(this.onNextCore);
             }
 
-            void OnNextCore(T value)
+            private void OnNextCore(T value)
             {
                 string v;
+
                 try
                 {
-                    v = messageFormatter(value);
+                    v = this.MessageFormatter(value);
                 }
                 catch (Exception ex)
                 {
                     EtwStreamEventSource.Log.SinkError(nameof(RollingFileSink), "messageFormatter convert failed", ex.ToString());
+
                     return;
                 }
-                asyncFileWriter.Enqueue(v);
+
+                this.AsyncFileWriter.Enqueue(v);
             }
 
             public override void Dispose()
             {
-                asyncFileWriter?.Finalize();
+                this.AsyncFileWriter?.MakeFinal();
             }
         }
 
 #if TRACE_EVENT
-
-        class TraceEventSink : RollingFileSinkBase<TraceEvent>
+        private class TraceEventSink : RollingFileSinkBase<TraceEvent>
         {
             public TraceEventSink(
                 Func<DateTime, int, string> fileNameSelector,
                 Func<DateTime, string> timestampPattern,
-                int rollSizeKB,
+                int rollSizeKb,
                 Func<TraceEvent, string> messageFormatter,
                 Encoding encoding,
                 bool autoFlush)
-                : base(fileNameSelector, timestampPattern, rollSizeKB, messageFormatter, encoding, autoFlush)
-            {
-            }
+                : base(fileNameSelector, timestampPattern, rollSizeKb, messageFormatter, encoding, autoFlush) { }
         }
-
 #endif
 
-        class EventWrittenEventArgsSink : RollingFileSinkBase<EventWrittenEventArgs>
+        private class EventWrittenEventArgsSink : RollingFileSinkBase<EventWrittenEventArgs>
         {
             public EventWrittenEventArgsSink(
                 Func<DateTime, int, string> fileNameSelector,
                 Func<DateTime, string> timestampPattern,
-                int rollSizeKB,
+                int rollSizeKb,
                 Func<EventWrittenEventArgs, string> messageFormatter,
                 Encoding encoding,
                 bool autoFlush)
-                : base(fileNameSelector, timestampPattern, rollSizeKB, messageFormatter, encoding, autoFlush)
-            {
-            }
+                : base(fileNameSelector, timestampPattern, rollSizeKb, messageFormatter, encoding, autoFlush) { }
         }
 
-        class StringSink : RollingFileSinkBase<string>
+        private class StringSink : RollingFileSinkBase<string>
         {
             public StringSink(
                 Func<DateTime, int, string> fileNameSelector,
                 Func<DateTime, string> timestampPattern,
-                int rollSizeKB,
+                int rollSizeKb,
                 Encoding encoding,
                 bool autoFlush)
-                : base(fileNameSelector, timestampPattern, rollSizeKB, x => x, encoding, autoFlush)
-            {
-            }
+                : base(fileNameSelector, timestampPattern, rollSizeKb, x => x, encoding, autoFlush) { }
         }
+
+#if TRACE_EVENT
+        public static IDisposable LogToRollingFile(this IObservable<TraceEvent> source,
+            Func<DateTime, int, string> fileNameSelector,
+            Func<DateTime, string> timestampPattern,
+            int rollSizeKb,
+            Func<TraceEvent, string> messageFormatter,
+            Encoding encoding,
+            bool autoFlush)
+        {
+            var sink = new TraceEventSink(fileNameSelector, timestampPattern, rollSizeKb, messageFormatter, encoding, autoFlush);
+
+            var subscription = source.Subscribe(sink);
+
+            return sink.CreateLinkedDisposable(subscription);
+        }
+
+        public static IDisposable LogToRollingFile(this IObservable<IList<TraceEvent>> source,
+            Func<DateTime, int, string> fileNameSelector,
+            Func<DateTime, string> timestampPattern,
+            int rollSizeKb,
+            Func<TraceEvent, string> messageFormatter,
+            Encoding encoding,
+            bool autoFlush)
+        {
+            var sink = new TraceEventSink(fileNameSelector, timestampPattern, rollSizeKb, messageFormatter, encoding, autoFlush);
+
+            var subscription = source.Subscribe(sink);
+
+            return sink.CreateLinkedDisposable(subscription);
+        }
+#endif
     }
 }

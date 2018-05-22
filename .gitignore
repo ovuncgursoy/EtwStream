@@ -27,3 +27,8 @@ _ReSharper*/
 *.vssscc
 $tf*/
 packages/*
+/.vs/EtwStream/v15/Server/sqlite3/storage.ide-wal
+/.vs/EtwStream/v15/Server/sqlite3/storage.ide-shm
+/.vs/EtwStream/v15/Server/sqlite3/storage.ide
+/.vs/EtwStream/v15/Server/sqlite3/db.lock
+/.vs/EtwStream/v15/Server/sqlite3
