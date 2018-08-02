@@ -1,6 +1,7 @@
 #region Using Statements
 
 using System;
+using System.Diagnostics.Tracing;
 
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Session;
@@ -24,6 +25,15 @@ namespace EtwStream
             Level = level;
             Keywords = keywords;
         }
+
+        public TraceEventProvider(EventSource eventSource, TraceEventLevel level = TraceEventLevel.Verbose, ulong keywords = ulong.MaxValue)
+        {
+            EventSource = eventSource;
+            Level = level;
+            Keywords = keywords;
+        }
+
+        public EventSource EventSource { get; }
 
         public Guid Guid { get; }
 
